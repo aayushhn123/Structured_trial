@@ -5,15 +5,15 @@ from datetime import datetime
 from fpdf import FPDF
 import base64
 from io import BytesIO
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 
-def generate_excel_outputs(df_dict, college_name):
-    """Generate Excel files per semester with ORIGINAL formatting."""
+
+def save_to_excel(df_dict, college_name):
+    """Generate main timetable Excel with ORIGINAL formatting."""
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         for sem, df in df_dict.items():
-            # Clean and prepare
             df_out = df.copy()
             df_out['Exam Date'] = df_out['Exam Date'].apply(
                 lambda x: datetime.strptime(x, "%d-%m-%Y").strftime("%d-%m-%Y") if pd.notna(x) and x != "" else ""
@@ -26,7 +26,7 @@ def generate_excel_outputs(df_dict, college_name):
 
             worksheet = writer.sheets[sheet_name]
             
-            # === HEADER ROW (Row 1) ===
+            # HEADER: College Name
             college_header = f"{college_name} - EXAMINATION TIMETABLE"
             worksheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=7)
             top_cell = worksheet.cell(row=1, column=1)
@@ -34,7 +34,7 @@ def generate_excel_outputs(df_dict, college_name):
             top_cell.font = Font(name="Arial", size=14, bold=True)
             top_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            # === COLUMN HEADERS (Row 3) ===
+            # COLUMN HEADERS
             headers = ['BRANCH', 'SEM', 'SUBJECT', 'MODULE CODE', 'STUDENTS', 'EXAM DATE', 'TIME SLOT']
             for col_num, header in enumerate(headers, 1):
                 cell = worksheet.cell(row=3, column=col_num)
@@ -42,33 +42,38 @@ def generate_excel_outputs(df_dict, college_name):
                 cell.font = Font(name="Arial", size=11, bold=True)
                 cell.alignment = Alignment(horizontal="center", vertical="center")
 
-            # === COLUMN WIDTHS (EXACT ORIGINAL) ===
+            # COLUMN WIDTHS (EXACT ORIGINAL)
             column_widths = [12, 8, 40, 15, 12, 15, 18]
             for i, width in enumerate(column_widths, 1):
                 worksheet.column_dimensions[get_column_letter(i)].width = width
 
-            # === DATA ROWS FORMATTING ===
+            # DATA ROWS
             for row in worksheet[f"A4:G{worksheet.max_row}"]:
                 for cell in row:
                     cell.font = Font(name="Arial", size=10)
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                    # Border
                     thin = Side(border_style="thin")
                     cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-            # === ALTERNATING ROW COLORS ===
+            # ALTERNATING ROW COLORS
             for idx, row in enumerate(worksheet[f"A4:G{worksheet.max_row}"], start=4):
                 fill_color = "F2F2F2" if idx % 2 == 0 else "FFFFFF"
+                fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
                 for cell in row:
-                    cell.fill = type(cell.fill)()
-                    from openpyxl.styles import PatternFill
-                    cell.fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+                    cell.fill = fill
 
     output.seek(0)
     return output
 
+
+def save_verification_excel(df_dict, college_name):
+    """Generate verification Excel (same format as main)."""
+    # Identical to save_to_excel — used for verification copy
+    return save_to_excel(df_dict, college_name)
+
+
 def generate_pdf_timetable(df_dict, college_name):
-    """Generate PDF with ORIGINAL layout and styling."""
+    """Generate PDF timetable with ORIGINAL layout."""
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
@@ -106,7 +111,7 @@ def generate_pdf_timetable(df_dict, college_name):
                 str(int(row['StudentCount'])) if pd.notna(row['StudentCount']) else "0"
             ]
             for i, (value, width) in enumerate(zip(values, col_widths)):
-                fill = (i % 2 == 0)
+                fill = 1 if i % 2 == 0 else 0
                 pdf.set_fill_color(245, 245, 245) if fill else pdf.set_fill_color(255, 255, 255)
                 pdf.cell(width, 7, value, border=1, fill=fill)
             pdf.ln()
@@ -118,8 +123,9 @@ def generate_pdf_timetable(df_dict, college_name):
     pdf_output.seek(0)
     return pdf_output
 
+
 def create_download_link(file_data, filename, file_type):
-    """Create download button with original file names."""
+    """Create styled download button."""
     b64 = base64.b64encode(file_data.read()).decode()
     file_data.seek(0)
     return f'''
