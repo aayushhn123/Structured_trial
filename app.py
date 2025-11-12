@@ -162,43 +162,62 @@ def init_session_state():
 
 def configure_sidebar():
     """Configure the sidebar with date, holidays, and capacity settings."""
-    st.markdown("### ⚙️ Configuration")
-    st.markdown("#### 📅 Examination Period")
-    
+    st.markdown("### Configuration")
+    st.markdown("#### Examination Period")
+
     col1, col2 = st.columns(2)
     with col1:
-        base_date_input = st.date_input("Start date for exams", value=datetime(2025, 4, 1))
+        base_date_input = st.date_input(
+            "Start date for exams",
+            value=datetime(2025, 4, 1),
+            key="base_date_input"  # Prevents re-initialization on rerun
+        )
     with col2:
-        end_date_input = st.date_input("End date for exams", value=datetime(2025, 5, 30))
+        end_date_input = st.date_input(
+            "End date for exams",
+            value=datetime(2025, 5, 30),
+            key="end_date_input"
+        )
 
+    # Convert to datetime with time
     base_date = datetime.combine(base_date_input, datetime.min.time())
     end_date = datetime.combine(end_date_input, datetime.min.time())
 
     # Validate date range
     if end_date <= base_date:
-        st.error("❌ End date must be after start date!")
+        st.error("End date must be after start date!")
         end_date = base_date + timedelta(days=30)
-        st.warning(f"⚠️ Auto-corrected end date to: {end_date.strftime('%Y-%m-%d')}")
+        st.warning(f"Auto-corrected end date to: {end_date.strftime('%Y-%m-%d')}")
 
-    # Store dates in session state for use in processing
+    # Store in session state
     st.session_state.base_date = base_date
     st.session_state.end_date = end_date
 
     st.markdown('<div style="margin-top: 2rem;"></div>', unsafe_allow_html=True)
-    st.markdown("#### 👥 Capacity Configuration")
-    st.session_state.capacity_slider = st.slider(
+    st.markdown("#### Capacity Configuration")
+
+    # --- SAFE CAPACITY SLIDER ---
+    # Initialize default if not exists
+    if "capacity_slider" not in st.session_state:
+        st.session_state.capacity_slider = 2000  # Default value
+
+    # Use key= to auto-sync with session_state
+    st.slider(
         "Maximum Students Per Session",
-        min_value=0,
+        min_value=1000,
         max_value=3000,
         value=st.session_state.capacity_slider,
-        step=50,
+        step=100,
         help="Set the maximum number of students allowed in a single session (morning or afternoon)",
-        key="capacity_slider"
+        key="capacity_slider"  # This binds it safely
     )
 
-    st.info(f"📊 Current capacity: **{st.session_state.capacity_slider}** students per session")
+    # Display current value
+    st.info(f"Current capacity: **{st.session_state.capacity_slider}** students per session")
+
     st.markdown('<div style="margin-top: 2rem;"></div>', unsafe_allow_html=True)
 
+    # Holiday configuration
     with st.expander("Holiday Configuration", expanded=True):
         configure_holidays()
 
