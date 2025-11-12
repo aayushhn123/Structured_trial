@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
-from datetime import timedelta, date
+from datetime import timedelta, datetime
 from utils import get_valid_dates_in_range, find_next_valid_day_in_range, get_preferred_slot, normalize_date_to_ddmmyyyy
+
 
 def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX_STUDENTS_PER_SESSION=2000):
     """
     FIXED ZERO-UNSCHEDULED SUPER SCHEDULING WITH CAPACITY CONSTRAINTS
     Now enforces maximum student capacity per time slot (morning/afternoon)
     """
-    st.info(f"🚀 SCHEDULING with {MAX_STUDENTS_PER_SESSION} students max per session...")
+    st.info(f"SCHEDULING with {MAX_STUDENTS_PER_SESSION} students max per session...")
     
     # STEP 1: COMPREHENSIVE SUBJECT ANALYSIS
     total_subjects_count = len(df)
@@ -64,7 +65,7 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
             'subbranch': row['SubBranch']
         }
     
-    st.write(f"🎯 **Coverage target:** {len(all_branch_sem_combinations)} branch-semester combinations")
+    st.write(f"Coverage target: {len(all_branch_sem_combinations)} branch-semester combinations")
     
     # Create ATOMIC SUBJECT UNITS
     atomic_subject_units = {}
@@ -130,11 +131,11 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
     medium_priority = [unit for unit in sorted_atomic_units if unit['frequency'] >= 2 and unit not in very_high_priority and unit not in high_priority]
     low_priority = [unit for unit in sorted_atomic_units if unit not in very_high_priority and unit not in high_priority and unit not in medium_priority]
     
-    st.write(f"🎯 **Atomic unit classification:**")
-    st.write(f"   🔥 Very High Priority: {len(very_high_priority)} units")
-    st.write(f"   📊 High Priority: {len(high_priority)} units")
-    st.write(f"   📋 Medium Priority: {len(medium_priority)} units")
-    st.write(f"   📄 Low Priority: {len(low_priority)} units")
+    st.write(f"Atomic unit classification:")
+    st.write(f"   Very High Priority: {len(very_high_priority)} units")
+    st.write(f"   High Priority: {len(high_priority)} units")
+    st.write(f"   Medium Priority: {len(medium_priority)} units")
+    st.write(f"   Low Priority: {len(low_priority)} units")
     
     # STEP 3: ATOMIC SCHEDULING ENGINE WITH CAPACITY CONSTRAINTS
     daily_scheduled_branch_sem = {}
@@ -149,13 +150,13 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
     while scheduling_day < target_days and unscheduled_units:
         exam_date = find_next_valid_day(current_date, holidays)
         if exam_date is None:
-            st.warning("⚠️ No more valid exam days available in main scheduling")
+            st.warning("No more valid exam days available in main scheduling")
             break
         
         date_str = exam_date.strftime("%d-%m-%Y")
         scheduling_day += 1
         
-        st.write(f"📅 **Day {scheduling_day} ({date_str})**")
+        st.write(f"Day {scheduling_day} ({date_str})")
         
         if date_str not in daily_scheduled_branch_sem:
             daily_scheduled_branch_sem[date_str] = set()
@@ -197,7 +198,7 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
                     
                     if can_fit_in_session(date_str, alternate_slot, total_students):
                         time_slot = alternate_slot
-                        st.write(f"  🔄 Moved to alternate slot due to capacity: {atomic_unit['subject_name']}")
+                        st.write(f"  Moved to alternate slot due to capacity: {atomic_unit['subject_name']}")
                     else:
                         # Cannot fit today, skip to next unit
                         continue
@@ -225,7 +226,7 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
                 units_to_remove.append(atomic_unit)
                 
                 unit_type = "COMMON" if atomic_unit['is_common'] else "INDIVIDUAL"
-                st.write(f"  ✅ **{unit_type} ATOMIC:** {atomic_unit['subject_name']} → "
+                st.write(f"  {unit_type} ATOMIC: {atomic_unit['subject_name']} → "
                          f"{len(atomic_unit['branch_sem_combinations'])} branches, "
                          f"{total_students} students at {time_slot}")
                 
@@ -238,9 +239,9 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
                             dates_used.add(exam_date_value)
                     
                     if len(dates_used) > 1:
-                        st.error(f"❌ CRITICAL ERROR: {atomic_unit['subject_name']} scheduled across {len(dates_used)} dates!")
+                        st.error(f"CRITICAL ERROR: {atomic_unit['subject_name']} scheduled across {len(dates_used)} dates!")
                     else:
-                        st.write(f"    ✅ Common subject integrity verified for {atomic_unit['subject_name']}")
+                        st.write(f"    Common subject integrity verified for {atomic_unit['subject_name']}")
         
         for unit in units_to_remove:
             unscheduled_units.remove(unit)
@@ -249,7 +250,7 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
         remaining_branch_sems = list(all_branch_sem_combinations - daily_scheduled_branch_sem[date_str])
         
         if remaining_branch_sems:
-            st.write(f"  🎯 **FILLING GAPS:** {len(remaining_branch_sems)} remaining slots...")
+            st.write(f"  FILLING GAPS: {len(remaining_branch_sems)} remaining slots...")
             
             additional_fills = []
             for atomic_unit in unscheduled_units.copy():
@@ -287,7 +288,7 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
                         scheduled_count += len(atomic_unit['all_rows'])
                         
                         additional_fills.append(atomic_unit)
-                        st.write(f"    📄 **GAP FILL:** {atomic_unit['subject_name']} ({total_students} students) at {time_slot}")
+                        st.write(f"    GAP FILL: {atomic_unit['subject_name']} ({total_students} students) at {time_slot}")
             
             for unit in additional_fills:
                 unscheduled_units.remove(unit)
@@ -296,42 +297,42 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
         morning_capacity = get_session_capacity(date_str, "10:00 AM - 1:00 PM")
         afternoon_capacity = get_session_capacity(date_str, "2:00 PM - 5:00 PM")
         
-        st.write(f"  📊 **Session Capacity Usage:**")
-        st.write(f"    Morning: {morning_capacity}/{MAX_STUDENTS_PER_SESSION} students ({morning_capacity/MAX_STUDENTS_PER_SESSION*100:.1f}%)")
+        st.write(f"  Session Capacity Usage:")
+        st.write(f"   tpl Morning: {morning_capacity}/{MAX_STUDENTS_PER_SESSION} students ({morning_capacity/MAX_STUDENTS_PER_SESSION*100:.1f}%)")
         st.write(f"    Afternoon: {afternoon_capacity}/{MAX_STUDENTS_PER_SESSION} students ({afternoon_capacity/MAX_STUDENTS_PER_SESSION*100:.1f}%)")
         
         # Daily verification
         final_coverage = len(daily_scheduled_branch_sem[date_str])
         coverage_percent = (final_coverage / len(all_branch_sem_combinations)) * 100
         
-        st.write(f"  📊 **Daily Summary:** {len(day_scheduled_units) + len(additional_fills) if 'additional_fills' in locals() else len(day_scheduled_units)} units scheduled, "
+        st.write(f"  Daily Summary: {len(day_scheduled_units) + len(additional_fills) if 'additional_fills' in locals() else len(day_scheduled_units)} units scheduled, "
                  f"{final_coverage}/{len(all_branch_sem_combinations)} branches covered ({coverage_percent:.1f}%)")
         
         progress_percent = (scheduled_count / len(eligible_subjects)) * 100
-        st.write(f"  📈 **Overall progress:** {scheduled_count}/{len(eligible_subjects)} subjects ({progress_percent:.1f}%)")
+        st.write(f"  Overall progress: {scheduled_count}/{len(eligible_subjects)} subjects ({progress_percent:.1f}%)")
         
         if not unscheduled_units:
-            st.success(f"🎉 **ALL UNITS SCHEDULED IN TARGET PERIOD!** Completed in {scheduling_day} days")
+            st.success(f"ALL UNITS SCHEDULED IN TARGET PERIOD! Completed in {scheduling_day} days")
             break
         
         current_date = exam_date + timedelta(days=1)
     
     # STEP 4: EXTENDED SCHEDULING FOR REMAINING UNITS
     if unscheduled_units:
-        st.warning(f"⚠️ {len(unscheduled_units)} units still need scheduling - entering extended mode")
+        st.warning(f"{len(unscheduled_units)} units still need scheduling - entering extended mode")
         
         extended_day = scheduling_day
         
         while unscheduled_units and extended_day < 25:
             exam_date = find_next_valid_day(current_date, holidays)
             if exam_date is None:
-                st.error("❌ No more valid days available")
+                st.error("No more valid days available")
                 break
             
             date_str = exam_date.strftime("%d-%m-%Y")
             extended_day += 1
             
-            st.write(f"  📅 **Extended Day {extended_day} ({date_str})**")
+            st.write(f"  Extended Day {extended_day} ({date_str})")
             
             if date_str not in daily_scheduled_branch_sem:
                 daily_scheduled_branch_sem[date_str] = set()
@@ -376,11 +377,11 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
             for unit in units_scheduled_today:
                 unscheduled_units.remove(unit)
             
-            st.write(f"    📄 Extended day scheduled: {len(units_scheduled_today)} units")
+            st.write(f"    Extended day scheduled: {len(units_scheduled_today)} units")
             current_date = exam_date + timedelta(days=1)
     
     # STEP 5: FINAL VERIFICATION AND STATISTICS
-    st.write("📊 **Step 5:** Final verification and statistics...")
+    st.write("Step 5: Final verification and statistics...")
     
     successfully_scheduled = df[
         (df['Exam Date'] != "") & 
@@ -402,27 +403,28 @@ def schedule_all_subjects_comprehensively(df, holidays, base_date, end_date, MAX
             
             if len(dates_used) > 1:
                 split_subjects += 1
-                st.error(f"❌ SPLIT DETECTED: {atomic_unit['subject_name']} across {len(dates_used)} dates")
+                st.error(f"SPLIT DETECTED: {atomic_unit['subject_name']} across {len(dates_used)} dates")
             else:
                 properly_grouped_common += 1
     
     total_days_used = len(daily_scheduled_branch_sem)
     success_rate = (len(successfully_scheduled) / len(eligible_subjects)) * 100
     
-    st.success(f"🏆 **ATOMIC SCHEDULING WITH CAPACITY CONSTRAINTS COMPLETE:**")
-    st.write(f"   📚 **Total subjects scheduled:** {len(successfully_scheduled)}/{len(eligible_subjects)} ({success_rate:.1f}%)")
-    st.write(f"   📅 **Days used:** {total_days_used}")
-    st.write(f"   ✅ **Properly grouped common subjects:** {properly_grouped_common}")
-    st.write(f"   ❌ **Split common subjects:** {split_subjects}")
-    st.write(f"   👥 **Maximum capacity per session:** {MAX_STUDENTS_PER_SESSION} students")
+    st.success(f"ATOMIC SCHEDULING WITH CAPACITY CONSTRAINTS COMPLETE:")
+    st.write(f"   Total subjects scheduled: {len(successfully_scheduled)}/{len(eligible_subjects)} ({success_rate:.1f}%)")
+    st.write(f"   Days used: {total_days_used}")
+    st.write(f"   Properly grouped common subjects: {properly_grouped_common}")
+    st.write(f"   Split common subjects: {split_subjects}")
+    st.write(f"   Maximum capacity per session: {MAX_STUDENTS_PER_SESSION} students")
     
     if split_subjects == 0:
-        st.success("🎉 **PERFECT: NO COMMON SUBJECTS SPLIT!**")
+        st.success("PERFECT: NO COMMON SUBJECTS SPLIT!")
         st.balloons()
     else:
-        st.error(f"❌ **CRITICAL: {split_subjects} common subjects were split across dates!**")
+        st.error(f"CRITICAL: {split_subjects} common subjects were split across dates!")
     
     return df
+
 
 def validate_capacity_constraints(df_dict, max_capacity=2000):
     """
@@ -452,6 +454,7 @@ def validate_capacity_constraints(df_dict, max_capacity=2000):
     
     return len(violations) == 0, violations
 
+
 def schedule_electives_globally(df_ele, max_non_elec_date, holidays_set):
     """
     Schedule electives globally after main scheduling.
@@ -479,8 +482,9 @@ def schedule_electives_globally(df_ele, max_non_elec_date, holidays_set):
     df_ele.loc[oe2_mask, 'Exam Date'] = day2_str
     df_ele.loc[oe2_mask, 'Time Slot'] = "2:00 PM - 5:00 PM"
     
-    st.success(f"🎓 Electives scheduled: OE1/OE5 on {day1_str}, OE2 on {day2_str}")
+    st.success(f"Electives scheduled: OE1/OE5 on {day1_str}, OE2 on {day2_str}")
     return df_ele
+
 
 def optimize_schedule_by_filling_gaps(sem_dict, holidays, base_date, end_date):
     """
@@ -489,7 +493,7 @@ def optimize_schedule_by_filling_gaps(sem_dict, holidays, base_date, end_date):
     if not sem_dict:
         return sem_dict, 0, []
     
-    st.info("🎯 Optimizing schedule by filling gaps...")
+    st.info("Optimizing schedule by filling gaps...")
     
     all_data = pd.concat(sem_dict.values(), ignore_index=True)
     all_data['Exam Date'] = all_data['Exam Date'].apply(normalize_date_to_ddmmyyyy)
@@ -509,7 +513,6 @@ def optimize_schedule_by_filling_gaps(sem_dict, holidays, base_date, end_date):
     moves_made = 0
     optimization_log = []
     
-    # Simple gap filling: Move low-priority subjects to earlier empty slots (uncommon only)
     for sem in sem_dict:
         df_sem = sem_dict[sem]
         uncommon = df_sem[(df_sem['CommonAcrossSems'] == False) & (df_sem['IsCommon'] != 'YES')]
@@ -519,19 +522,16 @@ def optimize_schedule_by_filling_gaps(sem_dict, holidays, base_date, end_date):
             if current_date == '' or current_date == 'Out of Range':
                 continue
             
-            # Find earlier empty day
             current_dt = datetime.strptime(current_date, "%d-%m-%Y")
             gap_date = find_next_valid_day_in_range(base_date, current_dt - timedelta(days=1), holidays)
             if gap_date:
                 gap_str = gap_date.strftime("%d-%m-%Y")
-                # Check if gap is empty for this branch-sem
                 mask = (sem_dict[sem]['Exam Date'] == gap_str) & (sem_dict[sem]['Branch'] == row['Branch'])
                 if len(sem_dict[sem][mask]) == 0:
                     sem_dict[sem].loc[idx, 'Exam Date'] = gap_str
                     moves_made += 1
                     optimization_log.append(f"Moved {row['Subject']} to {gap_str}")
     
-    # Calculate span reduction
     if moves_made > 0:
         updated_all_data = pd.concat(sem_dict.values(), ignore_index=True)
         updated_scheduled = updated_all_data[
@@ -555,40 +555,35 @@ def optimize_schedule_by_filling_gaps(sem_dict, holidays, base_date, end_date):
                 
                 if span_reduction > 0:
                     optimization_log.append(f"Schedule span reduced by {span_reduction} days!")
-                    st.success(f"📉 Schedule span reduced from {original_span} to {new_span} days (saved {span_reduction} days)")
+                    st.success(f"Schedule span reduced from {original_span} to {new_span} days (saved {span_reduction} days)")
     
-    # Ensure all dates in df_dict are properly formatted
     for sem in sem_dict:
         sem_dict[sem]['Exam Date'] = sem_dict[sem]['Exam Date'].apply(normalize_date_to_ddmmyyyy)
     
     if moves_made > 0:
-        st.success(f"✅ Gap Optimization: Made {moves_made} moves to fill gaps!")
-        with st.expander("📋 Gap Optimization Details"):
+        st.success(f"Gap Optimization: Made {moves_made} moves to fill gaps!")
+        with st.expander("Gap Optimization Details"):
             for log in optimization_log:
                 st.write(f"• {log}")
     else:
-        st.info("ℹ️ No beneficial moves found for gap optimization (only uncommon subjects considered)")
+        st.info("No beneficial moves found for gap optimization")
     
     return sem_dict, moves_made, optimization_log
+
 
 def optimize_oe_subjects_after_scheduling(sem_dict, holidays, optimizer=None):
     """
     After main scheduling AND gap optimization, check if OE subjects can be moved to earlier COMPLETELY EMPTY days.
     CRITICAL: OE2 must be scheduled on the day immediately after OE1/OE5.
-    UPDATED: Only moves to days with NO exams at all, runs AFTER gap optimization.
     """
     if not sem_dict:
         return sem_dict, 0, []
     
-    st.info("🎯 Optimizing Open Elective (OE) placement (after gap optimization)...")
+    st.info("Optimizing Open Elective (OE) placement (after gap optimization)...")
     
-    # Combine all data to analyze the schedule
     all_data = pd.concat(sem_dict.values(), ignore_index=True)
-    
-    # Ensure all dates are in DD-MM-YYYY string format
     all_data['Exam Date'] = all_data['Exam Date'].apply(normalize_date_to_ddmmyyyy)
     
-    # Separate OE and non-OE data
     oe_data = all_data[all_data['OE'].notna() & (all_data['OE'].str.strip() != "")]
     non_oe_data = all_data[~(all_data['OE'].notna() & (all_data['OE'].str.strip() != ""))]
     
@@ -596,10 +591,7 @@ def optimize_oe_subjects_after_scheduling(sem_dict, holidays, optimizer=None):
         st.info("No OE subjects to optimize")
         return sem_dict, 0, []
     
-    # Build schedule tracking: date -> count of ALL exams (including OE)
     exam_count_per_date = {}
-    
-    # Count ALL scheduled exams per date
     for _, row in all_data.iterrows():
         if pd.notna(row['Exam Date']) and row['Exam Date'].strip() != "":
             date_str = row['Exam Date']
@@ -607,41 +599,30 @@ def optimize_oe_subjects_after_scheduling(sem_dict, holidays, optimizer=None):
                 exam_count_per_date[date_str] = 0
             exam_count_per_date[date_str] += 1
     
-    # Find all dates in the schedule
-    all_dates = sorted(exam_count_per_date.keys(), 
-                      key=lambda x: datetime.strptime(x, "%d-%m-%Y"))
-    
+    all_dates = sorted(exam_count_per_date.keys(), key=lambda x: datetime.strptime(x, "%d-%m-%Y"))
     if not all_dates:
         return sem_dict, 0, []
     
-    st.write(f"📊 Current schedule has exams on {len(all_dates)} different dates")
-    
-    # Get the date range from first to last exam
     start_date = datetime.strptime(all_dates[0], "%d-%m-%Y")
     end_date = datetime.strptime(all_dates[-1], "%d-%m-%Y")
     
-    # Find COMPLETELY EMPTY days in the schedule range
     completely_empty_days = []
     current_date = start_date
-    
     while current_date <= end_date:
         if current_date.weekday() != 6 and current_date.date() not in holidays:
             date_str = current_date.strftime("%d-%m-%Y")
-            # Check if this date has NO exams at all
             if date_str not in exam_count_per_date:
                 completely_empty_days.append(date_str)
         current_date += timedelta(days=1)
     
-    # Sort empty days chronologically
     completely_empty_days.sort(key=lambda x: datetime.strptime(x, "%d-%m-%Y"))
     
-    st.write(f"🔍 Found {len(completely_empty_days)} completely empty days for potential OE optimization")
+    st.write(f"Found {len(completely_empty_days)} completely empty days for potential OE optimization")
     
     if not completely_empty_days:
-        st.info("ℹ️ No completely empty days available for OE optimization")
+        st.info("No completely empty days available for OE optimization")
         return sem_dict, 0, []
     
-    # Process OE optimization
     oe_data_copy = oe_data.copy()
     oe1_oe5_data = oe_data_copy[oe_data_copy['OE'].isin(['OE1', 'OE5'])]
     oe2_data = oe_data_copy[oe_data_copy['OE'] == 'OE2']
@@ -649,87 +630,88 @@ def optimize_oe_subjects_after_scheduling(sem_dict, holidays, optimizer=None):
     moves_made = 0
     optimization_log = []
     
-    # Process OE1/OE5 together (they should always be on the same date/time)
     if not oe1_oe5_data.empty:
         current_oe1_oe5_date = oe1_oe5_data['Exam Date'].iloc[0]
         current_oe1_oe5_date_obj = datetime.strptime(current_oe1_oe5_date, "%d-%m-%Y")
         
-        st.write(f"📅 Current OE1/OE5 date: {current_oe1_oe5_date}")
-        
-        # Find the earliest completely empty day that comes before current OE1/OE5 date
         best_oe1_oe5_date = None
         best_oe2_date = None
         
         for empty_day in completely_empty_days:
             empty_day_obj = datetime.strptime(empty_day, "%d-%m-%Y")
-            
-            # Only consider dates earlier than current OE1/OE5 date
             if empty_day_obj >= current_oe1_oe5_date_obj:
                 break
             
-            # Check if the next day is also completely empty (for OE2)
             next_day = find_next_valid_day_for_electives(empty_day_obj + timedelta(days=1), holidays)
             if next_day:
                 next_day_str = next_day.strftime("%d-%m-%Y")
-                
-                # Check if next day is also completely empty
                 if next_day_str in completely_empty_days:
                     best_oe1_oe5_date = empty_day
                     best_oe2_date = next_day_str
                     break
         
-        # If we found suitable completely empty days, move OE subjects
         if best_oe1_oe5_date and best_oe2_date:
             days_saved = (current_oe1_oe5_date_obj - datetime.strptime(best_oe1_oe5_date, "%d-%m-%Y")).days
             
-            st.write(f"✅ Found optimal placement: OE1/OE5 on {best_oe1_oe5_date}, OE2 on {best_oe2_date}")
-            
-            # Update all OE1/OE5 exams in semester dictionary
             for idx in oe1_oe5_data.index:
                 sem = all_data.at[idx, 'Semester']
                 branch = all_data.at[idx, 'Branch']
                 subject = all_data.at[idx, 'Subject']
-                
-                # Update in the semester dictionary
-                mask = (sem_dict[sem]['Subject'] == subject) & \
-                       (sem_dict[sem]['Branch'] == branch)
+                mask = (sem_dict[sem]['Subject'] == subject) & (sem_dict[sem]['Branch'] == branch)
                 sem_dict[sem].loc[mask, 'Exam Date'] = best_oe1_oe5_date
                 sem_dict[sem].loc[mask, 'Time Slot'] = "10:00 AM - 1:00 PM"
             
-            # Update all OE2 exams to the day immediately after OE1/OE5
             if not oe2_data.empty:
                 for idx in oe2_data.index:
                     sem = all_data.at[idx, 'Semester']
                     branch = all_data.at[idx, 'Branch']
                     subject = all_data.at[idx, 'Subject']
-                    
-                    # Update in the semester dictionary
-                    mask = (sem_dict[sem]['Subject'] == subject) & \
-                           (sem_dict[sem]['Branch'] == branch)
+                    mask = (sem_dict[sem]['Subject'] == subject) & (sem_dict[sem]['Branch'] == branch)
                     sem_dict[sem].loc[mask, 'Exam Date'] = best_oe2_date
                     sem_dict[sem].loc[mask, 'Time Slot'] = "2:00 PM - 5:00 PM"
             
             moves_made += 1
-            optimization_log.append(
-                f"Moved OE1/OE5 from {current_oe1_oe5_date} to {best_oe1_oe5_date} (saved {days_saved} days, completely empty day)"
-            )
+            optimization_log.append(f"Moved OE1/OE5 from {current_oe1_oe5_date} to {best_oe1_oe5_date} (saved {days_saved} days)")
             if not oe2_data.empty:
-                optimization_log.append(
-                    f"Moved OE2 to {best_oe2_date} (completely empty day, immediately after OE1/OE5)"
-                )
+                optimization_log.append(f"Moved OE2 to {best_oe2_date}")
         else:
-            st.info("ℹ️ No suitable consecutive completely empty days found for OE optimization")
+            st.info("No suitable consecutive completely empty days found")
     
-    # Ensure all dates in sem_dict are properly formatted
     for sem in sem_dict:
         sem_dict[sem]['Exam Date'] = sem_dict[sem]['Exam Date'].apply(normalize_date_to_ddmmyyyy)
     
     if moves_made > 0:
-        st.success(f"✅ OE Optimization: Moved {moves_made} OE groups to completely empty days!")
-        with st.expander("📋 OE Optimization Details"):
+        st.success(f"OE Optimization: Moved {moves_made} OE groups to completely empty days!")
+        with st.expander("OE Optimization Details"):
             for log in optimization_log:
                 st.write(f"• {log}")
     else:
-        st.info("ℹ️ OE subjects are already optimally placed or no suitable completely empty days available")
+        st.info("OE subjects already optimally placed")
     
     return sem_dict, moves_made, optimization_log
+
+
+# ──────────────────────────────────────────────────────────────────────
+# ADDED: Missing function used by elective scheduling
+# ──────────────────────────────────────────────────────────────────────
+def find_next_valid_day_for_electives(start_date, holidays_set):
+    """
+    Find the next valid day for electives (skip Sundays and holidays).
+    Returns a datetime object.
+    """
+    current_date = start_date
+    while True:
+        if current_date.weekday() != 6 and current_date.date() not in holidays_set:
+            return current_date
+        current_date += timedelta(days=1)
+
+
+# Export all public functions
+__all__ = [
+    "schedule_all_subjects_comprehensively",
+    "validate_capacity_constraints",
+    "optimize_schedule_by_filling_gaps",
+    "optimize_oe_subjects_after_scheduling",
+    "schedule_electives_globally",
+    "find_next_valid_day_for_electives",  # ← NOW INCLUDED
+]
