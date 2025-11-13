@@ -512,9 +512,12 @@ def compute_and_store_stats(sem_dict, valid_exam_days):
 
 def generate_files(sem_dict, original_df):
     """Generate Excel, PDF, and verification files."""
+    # Get college name from session state
+    college_name = st.session_state.get('selected_college', 'NMIMS University')
+    
     # Generate Excel
     try:
-        excel_buffer = save_to_excel(sem_dict)
+        excel_buffer = save_to_excel(sem_dict, college_name)
         if excel_buffer:
             st.session_state.excel_data = excel_buffer.getvalue()
             st.success("✅ Excel file generated successfully")
@@ -527,7 +530,7 @@ def generate_files(sem_dict, original_df):
 
     # Generate verification file
     try:
-        verification_buffer = save_verification_excel(original_df, sem_dict)
+        verification_buffer = save_verification_excel(sem_dict, college_name)
         if verification_buffer:
             st.session_state.verification_data = verification_buffer.getvalue()
             st.success("✅ Verification file generated successfully")
@@ -541,20 +544,12 @@ def generate_files(sem_dict, original_df):
     # Generate PDF
     try:
         if sem_dict:
-            pdf_buffer = io.BytesIO()
-            temp_pdf_path = "temp_timetable.pdf"
-            generate_pdf_timetable(sem_dict, temp_pdf_path)
-            
-            # Check if PDF was created successfully
-            if os.path.exists(temp_pdf_path):
-                with open(temp_pdf_path, "rb") as f:
-                    pdf_buffer.write(f.read())
-                pdf_buffer.seek(0)
+            pdf_buffer = generate_pdf_timetable(sem_dict, college_name)
+            if pdf_buffer:
                 st.session_state.pdf_data = pdf_buffer.getvalue()
-                os.remove(temp_pdf_path)
                 st.success("✅ PDF generated successfully")
             else:
-                st.warning("⚠️ PDF generation completed but file not found")
+                st.warning("⚠️ PDF generation completed but no data returned")
                 st.session_state.pdf_data = None
         else:
             st.warning("⚠️ No data available for PDF generation")
