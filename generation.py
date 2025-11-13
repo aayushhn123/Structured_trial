@@ -538,7 +538,15 @@ def generate_pdf_timetable(sem_dict, college_name):
                 row_num += 1
     
     pdf_output = BytesIO()
-    pdf_output.write(pdf.output(dest='S').encode('latin-1'))
+    # FPDF output() with dest='S' returns bytes in newer versions
+    pdf_bytes = pdf.output(dest='S')
+    
+    # Handle both string and bytes return types
+    if isinstance(pdf_bytes, str):
+        pdf_output.write(pdf_bytes.encode('latin-1'))
+    else:
+        pdf_output.write(pdf_bytes)
+    
     pdf_output.seek(0)
     return pdf_output
 
